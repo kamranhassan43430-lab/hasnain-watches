@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hasnain Watches – Official Store</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Montserrat;background:#f5f5f5}
+.hidden{display:none}
+
+/* LOGIN */
+.login-page{position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;z-index:9999}
+.login-box{width:100%;max-width:420px;padding:40px;border-radius:14px;border:1px solid #ddd;text-align:center}
+.login-box h2{font-family:'Playfair Display';margin-bottom:20px}
+.login-box input{width:100%;padding:14px;margin-bottom:14px}
+.login-box button{width:100%;padding:14px;background:#000;color:#fff;border:none;margin-top:10px;cursor:pointer}
+.social{background:#fff;color:#000;border:1px solid #000}
+
+/* STORE */
+header{background:#000;color:#fff;padding:18px}
+.nav{max-width:1400px;margin:auto;display:flex;justify-content:space-between;align-items:center}
+.nav a{color:#fff;margin:0 12px;cursor:pointer;text-decoration:none}
+.cart{cursor:pointer}
+.page{display:none;padding:60px 20px;max-width:1400px;margin:auto}
+.page.active{display:block}
+.hero{height:80vh;background:url('https://images.unsplash.com/photo-1523275335684-37898b6baf30') center/cover;display:flex;align-items:center;justify-content:center;color:#fff}
+.hero h1{font-size:3rem;font-family:'Playfair Display'}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:30px}
+.card{background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.15)}
+.card img{width:100%;height:260px;object-fit:cover}
+.card .info{padding:18px}
+.price{color:#d4af37;font-weight:700}
+.btn{background:#d4af37;border:none;padding:12px 20px;border-radius:30px;cursor:pointer}
+
+.cart-modal{position:fixed;right:0;top:0;width:360px;height:100%;background:#fff;box-shadow:-5px 0 20px rgba(0,0,0,.3);padding:20px;transform:translateX(100%);transition:.3s}
+.cart-modal.open{transform:translateX(0)}
+.cart-item{display:flex;gap:10px;margin-bottom:10px}
+
+footer{background:#000;color:#fff;text-align:center;padding:30px;margin-top:80px}
+</style>
+</head>
+
+<body>
+
+<!-- LOGIN -->
+<div class="login-page" id="loginPage">
+  <div class="login-box">
+    <h2>Login to Hasnain Watches</h2>
+    <input id="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password (min 6 chars)">
+    <button onclick="emailLogin()">Login</button>
+    <hr>
+    <button class="social" onclick="googleLogin()">Continue with Google</button>
+    <button class="social" onclick="phoneLogin()">Continue with Phone</button>
+    <div id="recaptcha-container"></div>
+  </div>
+</div>
+
+<!-- STORE -->
+<div id="store" class="hidden">
+<header>
+  <div class="nav">
+    <strong>Hasnain Watches</strong>
+    <div>
+      <a onclick="showPage('home')">Home</a>
+      <a onclick="showPage('men')">Men</a>
+      <a onclick="showPage('women')">Women</a>
+      <a onclick="showPage('smart')">Smart</a>
+      <a onclick="showPage('payments')">Payments</a>
+      <span class="cart" onclick="toggleCart()">🛒 <span id="count">0</span></span>
+    </div>
+  </div>
+</header>
+
+<section id="home" class="page active">
+  <div class="hero"><h1>Luxury Watches</h1></div>
+</section>
+
+<section id="men" class="page"><h2>Men Watches</h2><div class="grid" id="menP"></div></section>
+<section id="women" class="page"><h2>Women Watches</h2><div class="grid" id="womenP"></div></section>
+<section id="smart" class="page"><h2>Smart Watches</h2><div class="grid" id="smartP"></div></section>
+
+<section id="payments" class="page">
+<h2>Payment Methods</h2>
+<p>Payment first, then send screenshot on WhatsApp.</p>
+<p><b>EasyPaisa:</b> +92 322 4056148 (Hasnain)</p>
+<p><b>USDT BEP20:</b> 0x79aa47b9fb545e8c5472e7b419ede57a8013b5f8</p>
+<p><b>BTC:</b> 15ZGU3vtbV793k6mm4X2GG6kzTZbDS4LGE</p>
+<a class="btn" href="https://wa.me/923259473693" target="_blank">Send Screenshot</a>
+</section>
+
+<footer>© 2025 Hasnain Watches</footer>
+</div>
+
+<!-- CART -->
+<div class="cart-modal" id="cart">
+  <h3>Your Cart</h3>
+  <div id="items"></div>
+  <button class="btn" onclick="showPage('payments')">Proceed to Payment</button>
+</div>
+
+<script>
+/* FIREBASE */
+firebase.initializeApp({
+  apiKey: "AIzaSyC1bEk0ysRxikHtduoOUMt4EQgJOgNEXfk",
+  authDomain: "hasnain-watches.firebaseapp.com",
+  projectId: "hasnain-watches",
+  appId: "1:876801859100:web:66a474f87d6e09e55a49d9"
+});
+const auth = firebase.auth();
+
+/* LOGIN FIXED */
+function emailLogin(){
+  const e=email.value;
+  const p=password.value;
+
+  if(p.length<6){alert("Password must be at least 6 characters");return;}
+
+  auth.signInWithEmailAndPassword(e,p)
+  .then(loginSuccess)
+  .catch(err=>{
+    if(err.code==="auth/user-not-found"){
+      auth.createUserWithEmailAndPassword(e,p)
+      .then(loginSuccess)
+      .catch(er=>alert(er.message));
+    } else {
+      alert(err.message);
+    }
+  });
+}
+
+function googleLogin(){
+  auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())
+  .then(loginSuccess)
+  .catch(e=>alert(e.message));
+}
+
+function phoneLogin(){
+  window.recaptchaVerifier=new firebase.auth.RecaptchaVerifier('recaptcha-container',{size:'normal'});
+  const phone=prompt("Enter phone with +92");
+  auth.signInWithPhoneNumber(phone,window.recaptchaVerifier)
+  .then(c=>{
+    const code=prompt("Enter OTP");
+    c.confirm(code).then(loginSuccess);
+  }).catch(e=>alert(e.message));
+}
+
+function loginSuccess(){
+  loginPage.style.display="none";
+  store.classList.remove("hidden");
+}
+
+/* STORE */
+let cartArr=[];
+const imgs=[
+'https://images.unsplash.com/photo-1522312346375-d1a52e2b99b3',
+'https://images.unsplash.com/photo-1507679799987-c73779587ccf'
+];
+
+function load(el,name){
+  for(let i=1;i<=12;i++){
+    el.innerHTML+=`<div class="card">
+    <img src="${imgs[i%2]}">
+    <div class="info">
+      <h4>${name} Watch ${i}</h4>
+      <div class="price">Rs ${(i+10)*1000}</div>
+      <button class="btn" onclick="add('${name} Watch ${i}','${imgs[i%2]}')">Add to Cart</button>
+    </div></div>`;
+  }
+}
+load(menP,'Men');load(womenP,'Women');load(smartP,'Smart');
+
+function add(n,i){cartArr.push({n,i});count.innerText=cartArr.length;render()}
+function render(){items.innerHTML='';cartArr.forEach(c=>items.innerHTML+=`<div class="cart-item"><img src="${c.i}" width="50">${c.n}</div>`)}
+function toggleCart(){cart.classList.toggle('open')}
+function showPage(p){
+  document.querySelectorAll('.page').forEach(s=>s.classList.remove('active'));
+  document.getElementById(p).classList.add('active');
+  window.scrollTo(0,0);
+}
+</script>
+
+</body>
+</html>
